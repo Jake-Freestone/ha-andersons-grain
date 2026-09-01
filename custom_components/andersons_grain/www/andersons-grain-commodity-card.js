@@ -39,14 +39,14 @@ class AndersonsGrainCommodityCard extends HTMLElement {
   _formatPrice(val) {
     if (val === null || val === undefined) return "—";
     const n = parseFloat(val);
-    return isNaN(n) ? "—" : n.toFixed(4);
+    return isNaN(n) ? "—" : n.toFixed(2);
   }
 
   _changeHtml(val, compact = false) {
     if (val === null || val === undefined) return `<span class="neutral">—</span>`;
     const n = parseFloat(val);
     if (isNaN(n)) return `<span class="neutral">—</span>`;
-    const abs = Math.abs(n).toFixed(4);
+    const abs = Math.abs(n).toFixed(2);
     if (n > 0) return `<span class="positive">▲ ${abs}</span>`;
     if (n < 0) return `<span class="negative">▼ ${abs}</span>`;
     return `<span class="neutral">■ unch</span>`;
@@ -112,7 +112,7 @@ class AndersonsGrainCommodityCard extends HTMLElement {
     }).join("");
 
     const basisDisp = nearest.basis !== null && nearest.basis !== undefined
-      ? `${parseFloat(nearest.basis) >= 0 ? "+" : ""}${parseFloat(nearest.basis).toFixed(4)}`
+      ? `${parseFloat(nearest.basis) >= 0 ? "+" : ""}${parseFloat(nearest.basis).toFixed(2)}`
       : "—";
 
     this.shadowRoot.innerHTML = `

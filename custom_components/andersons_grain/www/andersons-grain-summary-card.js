@@ -39,8 +39,8 @@ class AndersonsGrainSummaryCard extends HTMLElement {
     if (val === null || val === undefined) return `<span class="change neutral">— unch</span>`;
     const n = parseFloat(val);
     if (isNaN(n)) return `<span class="change neutral">—</span>`;
-    if (n > 0) return `<span class="change positive">▲ ${n.toFixed(4)}</span>`;
-    if (n < 0) return `<span class="change negative">▼ ${Math.abs(n).toFixed(4)}</span>`;
+    if (n > 0) return `<span class="change positive">▲ ${n.toFixed(2)}</span>`;
+    if (n < 0) return `<span class="change negative">▼ ${Math.abs(n).toFixed(2)}</span>`;
     return `<span class="change neutral">■ unch</span>`;
   }
 
@@ -65,10 +65,10 @@ class AndersonsGrainSummaryCard extends HTMLElement {
 
       const attrs = entity.attributes || {};
       const bid = parseFloat(entity.state);
-      const priceStr = isNaN(bid) ? "—" : bid.toFixed(4);
+      const priceStr = isNaN(bid) ? "—" : bid.toFixed(2);
       const delivery = attrs.delivery || "—";
       const basis = attrs.basis !== null && attrs.basis !== undefined
-        ? `Basis: ${parseFloat(attrs.basis) >= 0 ? "+" : ""}${parseFloat(attrs.basis).toFixed(4)}`
+        ? `Basis: ${parseFloat(attrs.basis) >= 0 ? "+" : ""}${parseFloat(attrs.basis).toFixed(2)}`
         : "";
       const change = this._changeHtml(attrs.change);
 

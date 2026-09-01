@@ -56,12 +56,12 @@ class AndersonsGrainTickerCard extends HTMLElement {
   }
 
   _itemHtml(item) {
-    const bidStr = isNaN(item.bid) ? "—" : item.bid.toFixed(4);
+    const bidStr = isNaN(item.bid) ? "—" : item.bid.toFixed(2);
     let changeStr = "";
     let changeCls = "neutral";
     if (item.change !== null && !isNaN(item.change)) {
-      if (item.change > 0) { changeStr = `▲${item.change.toFixed(4)}`; changeCls = "positive"; }
-      else if (item.change < 0) { changeStr = `▼${Math.abs(item.change).toFixed(4)}`; changeCls = "negative"; }
+      if (item.change > 0) { changeStr = `▲${item.change.toFixed(2)}`; changeCls = "positive"; }
+      else if (item.change < 0) { changeStr = `▼${Math.abs(item.change).toFixed(2)}`; changeCls = "negative"; }
       else { changeStr = "unch"; changeCls = "neutral"; }
     }
     return `

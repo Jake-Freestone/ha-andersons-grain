@@ -37,13 +37,13 @@ class AndersonsGrainTableCard extends HTMLElement {
     if (isNaN(n)) return val;
     const sign = n > 0 ? "▲" : n < 0 ? "▼" : "■";
     const cls = n > 0 ? "positive" : n < 0 ? "negative" : "neutral";
-    return `<span class="change ${cls}">${sign} ${Math.abs(n).toFixed(4)}</span>`;
+    return `<span class="change ${cls}">${sign} ${Math.abs(n).toFixed(2)}</span>`;
   }
 
   _formatPrice(val) {
     if (val === null || val === undefined) return "—";
     const n = parseFloat(val);
-    return isNaN(n) ? val : n.toFixed(4);
+    return isNaN(n) ? val : n.toFixed(2);
   }
 
   _colLabel(col) {

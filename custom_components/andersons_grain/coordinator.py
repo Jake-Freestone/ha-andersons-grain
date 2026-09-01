@@ -21,7 +21,11 @@ COMMODITY_PATTERNS = {
     "red_wheat": re.compile(r"\bwheat\b", re.IGNORECASE),
 }
 
-DELIVERY_PATTERN = re.compile(r"^[A-Z]{2,3}\s+\d{2}$", re.IGNORECASE)
+# Search for a valid 3-letter month within any cell text (handles artifacts like "SNOV 26" → "NOV 26")
+DELIVERY_SEARCH = re.compile(
+    r"\b(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d{2})\b",
+    re.IGNORECASE,
+)
 
 COL_ALIASES = {
     "delivery": ["delivery", "month", "contract"],
@@ -93,18 +97,26 @@ def _parse_table(table) -> list[dict]:
         if not cells:
             continue
 
-        if col_map and "delivery" in col_map:
-            def get(col):
-                idx = col_map.get(col)
-                if idx is None or idx >= len(cells):
-                    return ""
-                return cells[idx].get_text(strip=True)
-            delivery = get("delivery").upper().strip()
-        else:
-            # Fallback: first cell is delivery
-            delivery = cells[0].get_text(strip=True).upper().strip()
+        def get_text(cell):
+            return cell.get_text(separator=" ", strip=True)
 
-        if not DELIVERY_PATTERN.match(delivery):
+        def extract_delivery(cell):
+            """Extract a clean MON YY string, ignoring any surrounding artifact chars."""
+            m = DELIVERY_SEARCH.search(get_text(cell))
+            return f"{m.group(1).upper()} {m.group(2)}" if m else None
+
+        def get(col):
+            idx = col_map.get(col)
+            if idx is None or idx >= len(cells):
+                return ""
+            return get_text(cells[idx])
+
+        if col_map and "delivery" in col_map:
+            delivery = extract_delivery(cells[col_map["delivery"]])
+        else:
+            delivery = extract_delivery(cells[0])
+
+        if not delivery:
             continue
 
         if col_map and "delivery" in col_map:
@@ -118,8 +130,7 @@ def _parse_table(table) -> list[dict]:
                 "last_trade": get("last_trade"),
             }
         else:
-            # Positional fallback
-            texts = [c.get_text(strip=True) for c in cells]
+            texts = [get_text(c) for c in cells]
             entry = {
                 "delivery": delivery,
                 "bid": _safe_float(texts[1]) if len(texts) > 1 else None,

@@ -155,6 +155,7 @@ class GrainCommoditySummarySensor(CoordinatorEntity, SensorEntity):
         self._attr_name = "Current Bid"
         self._attr_unique_id = f"andersons_grain_{commodity}_summary"
         self._attr_native_unit_of_measurement = "USD/bu"
+        self.entity_id = f"sensor.andersons_grain_{commodity}_summary"
 
     @property
     def native_value(self):
