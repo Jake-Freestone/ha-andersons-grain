@@ -4,7 +4,9 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import HomeAssistant
 
 from .const import CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL, DOMAIN
@@ -23,26 +25,53 @@ CARDS = [
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
-    """Register static www path and Lovelace resources once at startup."""
+    """Register static path for card JS files."""
     www_path = Path(__file__).parent / "www"
 
-    hass.http.register_static_path(
-        f"/{DOMAIN}/cards",
-        str(www_path),
-        cache_headers=False,
+    await hass.http.async_register_static_paths(
+        [StaticPathConfig(f"/{DOMAIN}/cards", str(www_path), False)]
     )
 
-    # Auto-register each card as a Lovelace resource
-    resource_list = hass.data.get("lovelace", {}).get("resources")
-    if resource_list is not None:
-        existing = {r["url"] for r in await resource_list.async_get_info() if "url" in r}
-        for card in CARDS:
-            url = f"/{DOMAIN}/cards/{card}"
-            if url not in existing:
-                await resource_list.async_create_item({"res_type": "module", "url": url})
-                _LOGGER.debug("Registered Lovelace resource: %s", url)
+    async def _register_resources(_event=None):
+        await _async_register_lovelace_resources(hass)
+
+    if hass.is_running:
+        await _register_resources()
+    else:
+        hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, _register_resources)
 
     return True
+
+
+async def _async_register_lovelace_resources(hass: HomeAssistant) -> None:
+    """Add card JS files as Lovelace resources if not already present."""
+    try:
+        from homeassistant.components.lovelace.resources import ResourceStorageCollection
+
+        lovelace = hass.data.get("lovelace")
+        if not lovelace:
+            _LOGGER.warning("Lovelace not available — skipping card resource registration")
+            return
+
+        resources = lovelace.get("resources")
+        if not isinstance(resources, ResourceStorageCollection):
+            _LOGGER.warning(
+                "Lovelace is in YAML mode — add cards manually as resources"
+            )
+            return
+
+        existing_urls = {item["url"] for item in resources.async_items()}
+
+        for card in CARDS:
+            url = f"/{DOMAIN}/cards/{card}"
+            if url not in existing_urls:
+                await resources.async_create_item({"res_type": "module", "url": url})
+                _LOGGER.info("Registered Lovelace resource: %s", url)
+            else:
+                _LOGGER.debug("Lovelace resource already registered: %s", url)
+
+    except Exception as err:
+        _LOGGER.error("Failed to register Lovelace resources: %s", err)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
