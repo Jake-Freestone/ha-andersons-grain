@@ -95,8 +95,7 @@ class GrainPriceSensor(CoordinatorEntity, SensorEntity):
         self._delivery_slug = delivery_slug
         self._price_type = price_type
 
-        display_commodity = COMMODITY_DISPLAY.get(commodity, commodity.title())
-        self._attr_name = f"{display_commodity} {delivery} {price_type.title()}"
+        self._attr_name = f"{delivery} {price_type.title()}"
         self._attr_unique_id = f"andersons_grain_{commodity}_{delivery_slug}_{price_type}"
         self._attr_native_unit_of_measurement = PRICE_TYPE_UNITS.get(price_type)
 
@@ -153,8 +152,7 @@ class GrainCommoditySummarySensor(CoordinatorEntity, SensorEntity):
     def __init__(self, coordinator: AndersonsGrainCoordinator, commodity: str) -> None:
         super().__init__(coordinator)
         self._commodity = commodity
-        display = COMMODITY_DISPLAY.get(commodity, commodity.title())
-        self._attr_name = f"{display} Current Bid"
+        self._attr_name = "Current Bid"
         self._attr_unique_id = f"andersons_grain_{commodity}_summary"
         self._attr_native_unit_of_measurement = "USD/bu"
 
