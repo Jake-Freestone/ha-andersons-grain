@@ -21,11 +21,10 @@ COMMODITY_PATTERNS = {
     "red_wheat": re.compile(r"\bwheat\b", re.IGNORECASE),
 }
 
-# Search for a valid 3-letter month within any cell text (handles artifacts like "SNOV 26" → "NOV 26")
-DELIVERY_SEARCH = re.compile(
-    r"\b(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d{2})\b",
-    re.IGNORECASE,
-)
+# Match any grain delivery period code (2-4 letters) followed by a 2-digit year.
+# Covers standard months (SEP, DEC), multi-month windows (ON, SON, JJ), etc.
+# Word boundary before the code ensures a single-letter commodity prefix (e.g. "S ON 26") is skipped.
+DELIVERY_SEARCH = re.compile(r"\b([A-Z]{2,4})\s+(\d{2})\b", re.IGNORECASE)
 
 COL_ALIASES = {
     "delivery": ["delivery", "month", "contract"],
