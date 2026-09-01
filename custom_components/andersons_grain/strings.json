@@ -1,0 +1,26 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Anderson's Grain Prices",
+        "description": "Fetches live grain prices from Anderson's Grain — Dunkirk, IN ({url})",
+        "data": {
+          "scan_interval": "Update interval (minutes)"
+        }
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Only one instance of Anderson's Grain is allowed."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Anderson's Grain Options",
+        "data": {
+          "scan_interval": "Update interval (minutes)"
+        }
+      }
+    }
+  }
+}
