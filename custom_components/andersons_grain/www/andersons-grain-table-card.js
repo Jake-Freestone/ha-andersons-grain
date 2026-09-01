@@ -7,11 +7,22 @@
  * columns: [delivery, bid, basis, change]
  */
 class AndersonsGrainTableCard extends HTMLElement {
+  connectedCallback() {
+    // Watch our own size and notify HA whenever it changes
+    this._ro = new ResizeObserver(() => {
+      this.dispatchEvent(new Event("card-height-changed", { bubbles: true, composed: true }));
+    });
+    this._ro.observe(this);
+  }
+
+  disconnectedCallback() {
+    this._ro?.disconnect();
+  }
+
   set hass(hass) { this._hass = hass; this._render(); }
 
   setConfig(config) {
     this._config = {
-      // no title
       commodities: config.commodities || ["corn", "soybean", "red_wheat"],
       columns: config.columns || ["delivery", "bid", "basis", "change"],
     };
@@ -74,7 +85,8 @@ class AndersonsGrainTableCard extends HTMLElement {
 
     this.shadowRoot.innerHTML = `
       <style>
-        ha-card { padding: 0; }
+        :host { display: block; height: auto; }
+        ha-card { padding: 0; height: auto; overflow: visible; }
         .card-header { padding: 16px 16px 0; font-size: 1em; font-weight: 500; }
         table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
         th, td { padding: 6px 12px; text-align: left; border-bottom: 1px solid var(--divider-color); color: var(--primary-text-color); }
@@ -99,9 +111,6 @@ class AndersonsGrainTableCard extends HTMLElement {
           <tbody>${body}</tbody>
         </table>
       </ha-card>`;
-
-    // Notify HA to recalculate card height in masonry layout
-    this.dispatchEvent(new Event("card-height-changed", { bubbles: true, composed: true }));
   }
 
   getCardSize() {
