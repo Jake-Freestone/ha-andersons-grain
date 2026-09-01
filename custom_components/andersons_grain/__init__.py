@@ -53,7 +53,7 @@ async def _async_register_lovelace_resources(hass: HomeAssistant) -> None:
             _LOGGER.warning("Lovelace not available — skipping card resource registration")
             return
 
-        resources = lovelace.get("resources")
+        resources = getattr(lovelace, "resources", None)
         if not isinstance(resources, ResourceStorageCollection):
             _LOGGER.warning(
                 "Lovelace is in YAML mode — add cards manually as resources"
