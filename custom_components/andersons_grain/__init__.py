@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -12,6 +13,36 @@ from .coordinator import AndersonsGrainCoordinator
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = ["sensor"]
+
+CARDS = [
+    "andersons-grain-table-card.js",
+    "andersons-grain-summary-card.js",
+    "andersons-grain-ticker-card.js",
+    "andersons-grain-commodity-card.js",
+]
+
+
+async def async_setup(hass: HomeAssistant, config: dict) -> bool:
+    """Register static www path and Lovelace resources once at startup."""
+    www_path = Path(__file__).parent / "www"
+
+    hass.http.register_static_path(
+        f"/{DOMAIN}/cards",
+        str(www_path),
+        cache_headers=False,
+    )
+
+    # Auto-register each card as a Lovelace resource
+    resource_list = hass.data.get("lovelace", {}).get("resources")
+    if resource_list is not None:
+        existing = {r["url"] for r in await resource_list.async_get_info() if "url" in r}
+        for card in CARDS:
+            url = f"/{DOMAIN}/cards/{card}"
+            if url not in existing:
+                await resource_list.async_create_item({"res_type": "module", "url": url})
+                _LOGGER.debug("Registered Lovelace resource: %s", url)
+
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
