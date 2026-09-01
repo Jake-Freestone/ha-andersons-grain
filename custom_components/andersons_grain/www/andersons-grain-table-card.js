@@ -1,24 +1,19 @@
 /**
- * Anderson's Grain Table Card
- * Full price table mimicking the website layout.
+ * Anderson's Grain Table Card — minimal HA style
  *
- * Config:
- *   type: custom:andersons-grain-table-card
- *   title: "Grain Prices"          (optional)
- *   commodities: [corn, soybean, red_wheat]  (optional, shows all if omitted)
- *   columns: [delivery, bid, basis, change, futures, last_trade]  (optional)
+ * type: custom:andersons-grain-table-card
+ * title: "Grain Prices"           (optional)
+ * commodities: [corn, soybean, red_wheat]
+ * columns: [delivery, bid, basis, change]
  */
 class AndersonsGrainTableCard extends HTMLElement {
-  set hass(hass) {
-    this._hass = hass;
-    this._render();
-  }
+  set hass(hass) { this._hass = hass; this._render(); }
 
   setConfig(config) {
     this._config = {
       title: config.title || "Grain Prices — Dunkirk, IN",
       commodities: config.commodities || ["corn", "soybean", "red_wheat"],
-      columns: config.columns || ["delivery", "bid", "basis", "change", "futures", "last_trade"],
+      columns: config.columns || ["delivery", "bid", "basis", "change"],
     };
     if (!this.shadowRoot) this.attachShadow({ mode: "open" });
   }
@@ -27,180 +22,89 @@ class AndersonsGrainTableCard extends HTMLElement {
     const labels = { corn: "Corn", soybean: "Soybean", red_wheat: "Red Wheat" };
     const label = labels[commodity] || commodity;
     for (const [, state] of Object.entries(this._hass?.states || {})) {
-      const attrs = state.attributes || {};
-      if (attrs.all_months && attrs.commodity === label) return state;
+      const a = state.attributes || {};
+      if (a.all_months && a.commodity === label) return state;
     }
     return null;
   }
 
-  _getEntityData(commodity) {
-    const entity = this._findSummaryEntity(commodity);
-    if (!entity) return null;
-    return entity.attributes?.all_months || null;
+  _label(col) {
+    return { delivery: "Delivery", bid: "Bid", basis: "Basis", change: "Chg", futures: "Futures", last_trade: "Last Trade" }[col] || col;
   }
 
-  _formatChange(val) {
-    if (val === null || val === undefined) return "—";
-    const n = parseFloat(val);
-    if (isNaN(n)) return val;
-    const sign = n > 0 ? "▲" : n < 0 ? "▼" : "■";
-    const cls = n > 0 ? "positive" : n < 0 ? "negative" : "neutral";
-    return `<span class="change ${cls}">${sign} ${Math.abs(n).toFixed(2)}</span>`;
-  }
-
-  _formatPrice(val) {
-    if (val === null || val === undefined) return "—";
-    const n = parseFloat(val);
-    return isNaN(n) ? val : n.toFixed(2);
-  }
-
-  _colLabel(col) {
-    const labels = {
-      delivery: "Delivery",
-      bid: "Bid",
-      basis: "Basis",
-      change: "Chg",
-      futures: "Futures",
-      last_trade: "Last Trade",
-    };
-    return labels[col] || col;
-  }
-
-  _colValue(row, col) {
+  _cell(row, col) {
     switch (col) {
       case "delivery": return row.delivery || "—";
-      case "bid": return this._formatPrice(row.bid);
-      case "basis": return this._formatPrice(row.basis);
-      case "change": return this._formatChange(row.change);
-      case "futures": return row.futures || "—";
+      case "bid":      return row.bid != null ? parseFloat(row.bid).toFixed(2) : "—";
+      case "basis":    return row.basis != null ? parseFloat(row.basis).toFixed(2) : "—";
+      case "change": {
+        if (row.change == null) return "—";
+        const n = parseFloat(row.change);
+        const sign = n > 0 ? "▲" : n < 0 ? "▼" : "";
+        const cls = n > 0 ? "pos" : n < 0 ? "neg" : "";
+        return `<span class="${cls}">${sign} ${Math.abs(n).toFixed(2)}</span>`;
+      }
+      case "futures":    return row.futures || "—";
       case "last_trade": return row.last_trade || "—";
       default: return "—";
     }
   }
 
-  _commodityLabel(key) {
-    return { corn: "Corn", soybean: "Soybean", red_wheat: "Red Wheat" }[key] || key;
+  _commodityLabel(k) {
+    return { corn: "Corn", soybean: "Soybean", red_wheat: "Red Wheat" }[k] || k;
   }
 
   _render() {
     if (!this._config || !this._hass) return;
     const cols = this._config.columns;
 
-    let tablesHtml = "";
-    for (const commodity of this._config.commodities) {
-      const months = this._getEntityData(commodity);
-      const label = this._commodityLabel(commodity);
+    const body = this._config.commodities.map(commodity => {
+      const entity = this._findSummaryEntity(commodity);
+      const months = entity?.attributes?.all_months;
+      if (!months?.length) return `
+        <tr class="section-header"><td colspan="${cols.length}">${this._commodityLabel(commodity)}</td></tr>
+        <tr><td colspan="${cols.length}" class="empty">No data</td></tr>`;
 
-      if (!months || months.length === 0) {
-        tablesHtml += `
-          <div class="commodity-section">
-            <h3 class="commodity-title">${label}</h3>
-            <p class="no-data">No data available</p>
-          </div>`;
-        continue;
-      }
-
-      const headerRow = cols.map(c => `<th>${this._colLabel(c)}</th>`).join("");
-      const dataRows = months.map(row => {
-        const cells = cols.map(c => {
-          const val = this._colValue(row, c);
-          const cls = c === "change"
-            ? ""
-            : c === "bid" ? "price-cell" : "";
-          return `<td class="${cls}">${val}</td>`;
-        }).join("");
-        return `<tr>${cells}</tr>`;
-      }).join("");
-
-      tablesHtml += `
-        <div class="commodity-section">
-          <h3 class="commodity-title">${label}</h3>
-          <div class="table-wrapper">
-            <table>
-              <thead><tr>${headerRow}</tr></thead>
-              <tbody>${dataRows}</tbody>
-            </table>
-          </div>
-        </div>`;
-    }
+      const header = `<tr class="section-header"><td colspan="${cols.length}">${this._commodityLabel(commodity)}</td></tr>`;
+      const rows = months.map(row =>
+        `<tr>${cols.map(c => `<td>${this._cell(row, c)}</td>`).join("")}</tr>`
+      ).join("");
+      return header + rows;
+    }).join("");
 
     this.shadowRoot.innerHTML = `
       <style>
-        :host { display: block; }
-        ha-card { padding: 16px; }
-        .card-title {
-          font-size: 1.1em;
+        ha-card { padding: 0; }
+        .card-header { padding: 16px 16px 0; font-size: 1em; font-weight: 500; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+        th, td { padding: 6px 12px; text-align: left; border-bottom: 1px solid var(--divider-color); color: var(--primary-text-color); }
+        th { font-weight: 500; color: var(--secondary-text-color); font-size: 0.85em; }
+        tr.section-header td {
+          padding: 10px 12px 4px;
           font-weight: 600;
-          margin-bottom: 12px;
-          color: var(--primary-text-color);
-          border-bottom: 2px solid var(--primary-color);
-          padding-bottom: 6px;
-        }
-        .commodity-section { margin-bottom: 20px; }
-        .commodity-title {
-          font-size: 1em;
-          font-weight: 700;
+          font-size: 0.8em;
           text-transform: uppercase;
           letter-spacing: 0.05em;
-          color: var(--primary-color);
-          margin: 0 0 8px 0;
+          color: var(--secondary-text-color);
+          border-bottom: none;
         }
-        .table-wrapper { overflow-x: auto; }
-        table {
-          width: 100%;
-          border-collapse: collapse;
-          font-size: 0.88em;
-        }
-        thead tr {
-          background: var(--primary-color);
-          color: var(--text-primary-color, #fff);
-        }
-        th {
-          padding: 8px 12px;
-          text-align: left;
-          font-weight: 600;
-          white-space: nowrap;
-        }
-        tbody tr {
-          border-bottom: 1px solid var(--divider-color, #e0e0e0);
-          transition: background 0.15s;
-        }
-        tbody tr:hover { background: var(--secondary-background-color); }
-        tbody tr:nth-child(even) { background: var(--table-row-background-color, rgba(0,0,0,0.03)); }
-        tbody tr:nth-child(even):hover { background: var(--secondary-background-color); }
-        td {
-          padding: 7px 12px;
-          white-space: nowrap;
-          color: var(--primary-text-color);
-        }
-        .price-cell { font-weight: 600; font-family: monospace; }
-        .change.positive { color: #2e7d32; font-weight: 600; }
-        .change.negative { color: #c62828; font-weight: 600; }
-        .change.neutral { color: var(--secondary-text-color); }
-        .no-data { color: var(--secondary-text-color); font-style: italic; }
+        .empty { color: var(--secondary-text-color); font-style: italic; }
+        .pos { color: var(--success-color, #4CAF50); }
+        .neg { color: var(--error-color, #F44336); }
       </style>
       <ha-card>
-        <div class="card-title">${this._config.title}</div>
-        ${tablesHtml}
+        <div class="card-header">${this._config.title}</div>
+        <table>
+          <thead><tr>${cols.map(c => `<th>${this._label(c)}</th>`).join("")}</tr></thead>
+          <tbody>${body}</tbody>
+        </table>
       </ha-card>`;
   }
 
-  getCardSize() { return this._config?.commodities?.length * 5 || 10; }
-
-  static getConfigElement() {
-    return document.createElement("andersons-grain-table-card-editor");
-  }
-
-  static getStubConfig() {
-    return { commodities: ["corn", "soybean", "red_wheat"] };
-  }
+  getCardSize() { return 8; }
+  static getStubConfig() { return { commodities: ["corn", "soybean", "red_wheat"] }; }
 }
 
 customElements.define("andersons-grain-table-card", AndersonsGrainTableCard);
 window.customCards = window.customCards || [];
-window.customCards.push({
-  type: "andersons-grain-table-card",
-  name: "Anderson's Grain Table Card",
-  description: "Full grain price table (all delivery months) inspired by Anderson's Grain website layout.",
-  preview: false,
-});
+window.customCards.push({ type: "andersons-grain-table-card", name: "Anderson's Grain Table Card", description: "Full grain price table for all delivery months." });

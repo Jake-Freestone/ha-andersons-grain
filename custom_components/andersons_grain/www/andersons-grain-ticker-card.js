@@ -1,12 +1,10 @@
 /**
- * Anderson's Grain Ticker Card
- * Scrolling stock-ticker strip showing current bids and changes.
+ * Anderson's Grain Ticker Card — minimal HA style
  *
- * Config:
- *   type: custom:andersons-grain-ticker-card
- *   speed: 40             (pixels per second, default 35)
- *   commodities: [corn, soybean, red_wheat]  (optional)
- *   pause_on_hover: true  (optional, default true)
+ * type: custom:andersons-grain-ticker-card
+ * speed: 35
+ * commodities: [corn, soybean, red_wheat]
+ * pause_on_hover: true
  */
 class AndersonsGrainTickerCard extends HTMLElement {
   constructor() {
@@ -15,14 +13,12 @@ class AndersonsGrainTickerCard extends HTMLElement {
     this._offset = 0;
     this._paused = false;
     this._lastTs = null;
-    this._contentWidth = 0;
-    this._containerWidth = 0;
   }
 
   set hass(hass) {
-    const changed = JSON.stringify(this._buildItems(hass)) !== JSON.stringify(this._buildItems(this._hass));
+    const prev = JSON.stringify(this._items(this._hass));
     this._hass = hass;
-    if (changed || !this._initialized) {
+    if (JSON.stringify(this._items(hass)) !== prev || !this._initialized) {
       this._render();
       this._initialized = true;
     }
@@ -37,79 +33,46 @@ class AndersonsGrainTickerCard extends HTMLElement {
     if (!this.shadowRoot) this.attachShadow({ mode: "open" });
   }
 
-  _commodityLabel(key) {
-    return { corn: "CORN", soybean: "SOY", red_wheat: "RED WHT" }[key] || key.toUpperCase();
-  }
-
   _findSummaryEntity(hass, commodity) {
     const labels = { corn: "Corn", soybean: "Soybean", red_wheat: "Red Wheat" };
     const label = labels[commodity] || commodity;
     for (const [, state] of Object.entries(hass?.states || {})) {
-      const attrs = state.attributes || {};
-      if (attrs.all_months && attrs.commodity === label) return state;
+      const a = state.attributes || {};
+      if (a.all_months && a.commodity === label) return state;
     }
     return null;
   }
 
-  _buildItems(hass) {
-    if (!hass) return [];
-    const items = [];
-    for (const commodity of (this._config?.commodities || [])) {
+  _items(hass) {
+    if (!hass || !this._config) return [];
+    return this._config.commodities.flatMap(commodity => {
       const entity = this._findSummaryEntity(hass, commodity);
-      if (!entity) continue;
-      const attrs = entity.attributes || {};
+      if (!entity) return [];
+      const labels = { corn: "Corn", soybean: "Soybean", red_wheat: "Red Wheat" };
       const bid = parseFloat(entity.state);
-      const change = attrs.change !== null && attrs.change !== undefined ? parseFloat(attrs.change) : null;
-      items.push({ commodity, label: this._commodityLabel(commodity), bid, change, delivery: attrs.delivery || "" });
-    }
-    return items;
-  }
-
-  _itemHtml(item) {
-    const bidStr = isNaN(item.bid) ? "—" : item.bid.toFixed(2);
-    let changeStr = "";
-    let changeCls = "neutral";
-    if (item.change !== null && !isNaN(item.change)) {
-      if (item.change > 0) { changeStr = `▲${item.change.toFixed(2)}`; changeCls = "positive"; }
-      else if (item.change < 0) { changeStr = `▼${Math.abs(item.change).toFixed(2)}`; changeCls = "negative"; }
-      else { changeStr = "unch"; changeCls = "neutral"; }
-    }
-    return `
-      <span class="tick-item">
-        <span class="tick-label">${item.label}</span>
-        <span class="tick-delivery">${item.delivery}</span>
-        <span class="tick-price">${bidStr}</span>
-        ${changeStr ? `<span class="tick-change ${changeCls}">${changeStr}</span>` : ""}
-        <span class="tick-sep">◆</span>
-      </span>`;
+      const change = entity.attributes?.change != null ? parseFloat(entity.attributes.change) : null;
+      return [{ label: labels[commodity] || commodity, bid, change, delivery: entity.attributes?.delivery || "" }];
+    });
   }
 
   _stopAnimation() {
-    if (this._animFrame) {
-      cancelAnimationFrame(this._animFrame);
-      this._animFrame = null;
-    }
+    if (this._animFrame) { cancelAnimationFrame(this._animFrame); this._animFrame = null; }
   }
 
   _startAnimation() {
     this._stopAnimation();
     this._lastTs = null;
-
-    const track = this.shadowRoot?.querySelector(".ticker-track");
+    const track = this.shadowRoot?.querySelector(".track");
     if (!track) return;
-
     const step = (ts) => {
       if (!this._lastTs) this._lastTs = ts;
       const dt = (ts - this._lastTs) / 1000;
       this._lastTs = ts;
-
       if (!this._paused) {
-        const trackWidth = track.scrollWidth / 2; // duplicated content
-        this._offset += this._config.speed * dt;
-        if (this._offset >= trackWidth) this._offset -= trackWidth;
+        const half = track.scrollWidth / 2;
+        this._offset = (this._offset + this._config.speed * dt) % half;
         track.style.transform = `translateX(-${this._offset}px)`;
       }
-
       this._animFrame = requestAnimationFrame(step);
     };
     this._animFrame = requestAnimationFrame(step);
@@ -117,65 +80,45 @@ class AndersonsGrainTickerCard extends HTMLElement {
 
   _render() {
     if (!this._config || !this._hass) return;
-    const items = this._buildItems(this._hass);
-    const content = items.length
-      ? items.map(i => this._itemHtml(i)).join("")
-      : `<span class="tick-item"><span class="tick-label">No data</span></span>`;
-
     this._stopAnimation();
+
+    const items = this._items(this._hass);
+    const itemHtml = items.map(item => {
+      const bid = isNaN(item.bid) ? "—" : item.bid.toFixed(2);
+      let chg = "", chgCls = "";
+      if (item.change != null && !isNaN(item.change)) {
+        chgCls = item.change > 0 ? "pos" : item.change < 0 ? "neg" : "";
+        chg = `<span class="${chgCls}">${item.change > 0 ? "▲" : item.change < 0 ? "▼" : ""}${Math.abs(item.change).toFixed(2)}</span>`;
+      }
+      return `<span class="item"><span class="name">${item.label}</span> <span class="delivery">${item.delivery}</span> <span class="bid">${bid}</span>${chg ? ` ${chg}` : ""}<span class="sep"> · </span></span>`;
+    }).join("");
+
+    const content = items.length ? itemHtml : `<span class="item">No data</span>`;
 
     this.shadowRoot.innerHTML = `
       <style>
-        :host { display: block; }
-        ha-card { overflow: hidden; padding: 0; }
-        .ticker-wrap {
+        ha-card { overflow: hidden; }
+        .wrap {
           overflow: hidden;
-          background: var(--primary-color);
-          height: 38px;
+          height: 36px;
           display: flex;
           align-items: center;
-          cursor: default;
-          position: relative;
+          background: var(--secondary-background-color);
+          border-top: 1px solid var(--divider-color);
+          border-bottom: 1px solid var(--divider-color);
         }
-        .ticker-track {
-          display: flex;
-          align-items: center;
-          white-space: nowrap;
-          will-change: transform;
-        }
-        .tick-item {
-          display: inline-flex;
-          align-items: center;
-          gap: 5px;
-          padding: 0 8px;
-          font-size: 0.82em;
-          color: var(--text-primary-color, #fff);
-        }
-        .tick-label {
-          font-weight: 700;
-          letter-spacing: 0.04em;
-        }
-        .tick-delivery {
-          font-size: 0.85em;
-          opacity: 0.8;
-        }
-        .tick-price {
-          font-family: monospace;
-          font-weight: 600;
-          font-size: 1em;
-        }
-        .tick-change {
-          font-weight: 700;
-          font-size: 0.9em;
-        }
-        .tick-change.positive { color: #a5d6a7; }
-        .tick-change.negative { color: #ef9a9a; }
-        .tick-change.neutral { opacity: 0.75; }
-        .tick-sep { opacity: 0.4; font-size: 0.6em; padding: 0 4px; }
+        .track { display: flex; align-items: center; white-space: nowrap; will-change: transform; }
+        .item { display: inline-flex; align-items: center; gap: 4px; padding: 0 4px; font-size: 0.85em; color: var(--primary-text-color); }
+        .name { font-weight: 500; }
+        .delivery { color: var(--secondary-text-color); font-size: 0.8em; }
+        .bid { font-weight: 600; }
+        .sep { color: var(--secondary-text-color); }
+        .pos { color: var(--success-color, #4CAF50); }
+        .neg { color: var(--error-color, #F44336); }
       </style>
       <ha-card>
-        <div class="ticker-wrap" id="wrap">
-          <div class="ticker-track">${content}${content}</div>
+        <div class="wrap" id="wrap">
+          <div class="track">${content}${content}</div>
         </div>
       </ha-card>`;
 
@@ -184,23 +127,14 @@ class AndersonsGrainTickerCard extends HTMLElement {
       wrap.addEventListener("mouseenter", () => { this._paused = true; });
       wrap.addEventListener("mouseleave", () => { this._paused = false; });
     }
-
     if (items.length) this._startAnimation();
   }
 
   disconnectedCallback() { this._stopAnimation(); }
   getCardSize() { return 1; }
-
-  static getStubConfig() {
-    return { speed: 35, pause_on_hover: true };
-  }
+  static getStubConfig() { return { speed: 35 }; }
 }
 
 customElements.define("andersons-grain-ticker-card", AndersonsGrainTickerCard);
 window.customCards = window.customCards || [];
-window.customCards.push({
-  type: "andersons-grain-ticker-card",
-  name: "Anderson's Grain Ticker Card",
-  description: "Scrolling stock-ticker strip showing current grain bids and price changes.",
-  preview: false,
-});
+window.customCards.push({ type: "andersons-grain-ticker-card", name: "Anderson's Grain Ticker Card", description: "Scrolling ticker strip with current bids and changes." });
