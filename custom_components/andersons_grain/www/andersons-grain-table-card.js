@@ -99,9 +99,20 @@ class AndersonsGrainTableCard extends HTMLElement {
           <tbody>${body}</tbody>
         </table>
       </ha-card>`;
+
+    // Notify HA to recalculate card height in masonry layout
+    this.dispatchEvent(new Event("card-height-changed", { bubbles: true, composed: true }));
   }
 
-  getCardSize() { return 8; }
+  getCardSize() {
+    let rows = 1; // thead
+    for (const commodity of (this._config?.commodities || [])) {
+      const entity = this._findSummaryEntity(commodity);
+      const months = entity?.attributes?.all_months?.length || 7;
+      rows += 1 + months; // section label + data rows
+    }
+    return Math.ceil(rows / 2);
+  }
   static getStubConfig() { return { commodities: ["corn", "soybean", "red_wheat"] }; }
 }
 
