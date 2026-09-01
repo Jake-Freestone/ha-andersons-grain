@@ -11,7 +11,7 @@ class AndersonsGrainTableCard extends HTMLElement {
 
   setConfig(config) {
     this._config = {
-      title: config.title || "Grain Prices — Dunkirk, IN",
+      // no title
       commodities: config.commodities || ["corn", "soybean", "red_wheat"],
       columns: config.columns || ["delivery", "bid", "basis", "change"],
     };
@@ -93,7 +93,7 @@ class AndersonsGrainTableCard extends HTMLElement {
         .neg { color: var(--error-color, #F44336); }
       </style>
       <ha-card>
-        <div class="card-header">${this._config.title}</div>
+        
         <table>
           <thead><tr>${cols.map(c => `<th>${this._label(c)}</th>`).join("")}</tr></thead>
           <tbody>${body}</tbody>

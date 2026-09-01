@@ -101,7 +101,6 @@ class AndersonsGrainCommodityCard extends HTMLElement {
       <ha-card>
         <div class="header">
           <span class="title">${label}</span>
-          <span class="subtitle">Dunkirk, IN</span>
         </div>
         <div class="stats">
           <div>

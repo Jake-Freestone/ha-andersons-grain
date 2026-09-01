@@ -10,7 +10,7 @@ class AndersonsGrainSummaryCard extends HTMLElement {
 
   setConfig(config) {
     this._config = {
-      title: config.title || "Grain Prices — Dunkirk, IN",
+      // no title
       commodities: config.commodities || ["corn", "soybean", "red_wheat"],
     };
     if (!this.shadowRoot) this.attachShadow({ mode: "open" });
@@ -83,7 +83,7 @@ class AndersonsGrainSummaryCard extends HTMLElement {
         .neg { color: var(--error-color, #F44336); }
       </style>
       <ha-card>
-        <div class="card-header">${this._config.title}</div>
+        
         ${rows}
       </ha-card>`;
   }
