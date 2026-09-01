@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Anderson's Grain Table Card — Local Test</title>
+  <style>
+    body { font-family: sans-serif; background: #f0f0f0; padding: 20px; }
+    h2 { margin-bottom: 8px; }
+    .scenario { margin-bottom: 32px; }
+    .label { font-size: 0.85em; color: #666; margin-bottom: 6px; }
+
+    /* Simulate HA CSS variables */
+    :root {
+      --primary-text-color: #212121;
+      --secondary-text-color: #727272;
+      --divider-color: #e0e0e0;
+      --success-color: #4CAF50;
+      --error-color: #F44336;
+      --card-background-color: #fff;
+    }
+
+    /* Simulate HA sections grid slot — fixed height, card must fill it */
+    .grid-slot {
+      width: 400px;
+      border: 2px dashed #aaa;
+      background: #e8e8e8;
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+    .grid-slot > * { flex: 1; }
+    .grid-slot-label {
+      position: absolute;
+      top: 2px; right: 4px;
+      font-size: 10px;
+      color: #999;
+    }
+
+    /* ha-card polyfill */
+    ha-card {
+      display: block;
+      background: var(--card-background-color);
+      border-radius: 12px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    #log { background: #222; color: #0f0; padding: 12px; font-family: monospace; font-size: 0.8em; border-radius: 6px; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+
+<h2>Table Card Height Test</h2>
+<p>The dashed box simulates HA's fixed-height grid slot (<code>overflow: hidden</code>). The card should push through it.</p>
+
+<div class="scenario">
+  <div class="label">Scenario 1 — Small slot (200px), card has more content</div>
+  <div class="grid-slot" style="height: 200px" id="slot1">
+    <span class="grid-slot-label">slot: 200px</span>
+  </div>
+</div>
+
+<div class="scenario">
+  <div class="label">Scenario 2 — Slot auto-sizes to content (no overflow:hidden)</div>
+  <div style="width:400px; border: 2px solid #4CAF50; border-radius: 4px;" id="slot2"></div>
+</div>
+
+<div class="scenario">
+  <div class="label">Scenario 3 — Add/remove rows dynamically</div>
+  <button id="btnAdd">Add delivery month</button>
+  <button id="btnRemove">Remove delivery month</button>
+  <div class="grid-slot" style="height: 200px; margin-top: 8px" id="slot3">
+    <span class="grid-slot-label">slot: 200px</span>
+  </div>
+</div>
+
+<br>
+<div id="log">Log output will appear here...</div>
+
+<script src="../custom_components/andersons_grain/www/andersons-grain-table-card.js"></script>
+<script>
+// --- Mock hass state ---
+function makeMockHass(months) {
+  const makeMonths = (commodity, n) =>
+    Array.from({ length: n }, (_, i) => ({
+      delivery: ["SEP 26","ON 26","DEC 26","JAN 27","FEB 27","MAR 27","APR 27"][i] || `MON ${27+i}`,
+      bid: (5.20 + i * 0.05).toFixed(4),
+      basis: (-0.10 - i * 0.01).toFixed(4),
+      change: (i % 2 === 0 ? -0.05 : 0.03).toFixed(4),
+      futures: "CZ26",
+      symbol: "CZ26",
+      last_trade: "10:30 AM",
+    }));
+
+  return {
+    states: {
+      "sensor.corn_summary": {
+        state: "5.36",
+        attributes: { commodity: "Corn", delivery: "SEP 26", basis: -0.10, change: -0.05, all_months: makeMonths("corn", months) }
+      },
+      "sensor.soybean_summary": {
+        state: "12.83",
+        attributes: { commodity: "Soybean", delivery: "SEP 26", basis: -0.35, change: 0.03, all_months: makeMonths("soybean", months) }
+      },
+      "sensor.wheat_summary": {
+        state: "7.40",
+        attributes: { commodity: "Red Wheat", delivery: "SEP 26", basis: -0.20, change: -0.02, all_months: makeMonths("wheat", 2) }
+      },
+    }
+  };
+}
+
+const log = document.getElementById("log");
+function logMsg(msg) {
+  log.textContent += "\n" + new Date().toLocaleTimeString() + " — " + msg;
+}
+
+// Listen for card-height-changed events globally
+document.addEventListener("card-height-changed", (e) => {
+  const card = e.target;
+  const host = card;
+  logMsg(`card-height-changed fired | host.offsetHeight=${host.offsetHeight}px | host.scrollHeight=${host.scrollHeight}px | host.style.minHeight=${host.style.minHeight}`);
+}, true);
+
+// --- Scenario 1 ---
+const card1 = document.createElement("andersons-grain-table-card");
+card1.setConfig({ commodities: ["corn", "soybean", "red_wheat"] });
+card1.hass = makeMockHass(7);
+document.getElementById("slot1").appendChild(card1);
+
+// --- Scenario 2 ---
+const card2 = document.createElement("andersons-grain-table-card");
+card2.setConfig({ commodities: ["corn", "soybean", "red_wheat"] });
+card2.hass = makeMockHass(7);
+document.getElementById("slot2").appendChild(card2);
+
+// --- Scenario 3 (dynamic rows) ---
+let rowCount = 3;
+const card3 = document.createElement("andersons-grain-table-card");
+card3.setConfig({ commodities: ["corn", "soybean", "red_wheat"] });
+card3.hass = makeMockHass(rowCount);
+document.getElementById("slot3").appendChild(card3);
+
+document.getElementById("btnAdd").addEventListener("click", () => {
+  rowCount = Math.min(rowCount + 1, 7);
+  card3.hass = makeMockHass(rowCount);
+  logMsg(`Rows changed to ${rowCount}`);
+});
+document.getElementById("btnRemove").addEventListener("click", () => {
+  rowCount = Math.max(rowCount - 1, 1);
+  card3.hass = makeMockHass(rowCount);
+  logMsg(`Rows changed to ${rowCount}`);
+});
+
+logMsg("Cards initialised");
+</script>
+</body>
+</html>

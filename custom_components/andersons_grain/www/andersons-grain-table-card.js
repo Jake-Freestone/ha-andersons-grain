@@ -85,8 +85,8 @@ class AndersonsGrainTableCard extends HTMLElement {
 
     this.shadowRoot.innerHTML = `
       <style>
-        :host { display: block; }
-        ha-card { padding: 0; height: auto !important; overflow: visible !important; }
+        :host { display: block; height: 100%; }
+        ha-card { padding: 0; height: 100%; box-sizing: border-box; overflow: auto; }
         .card-header { padding: 16px 16px 0; font-size: 1em; font-weight: 500; }
         table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
         th, td { padding: 6px 12px; text-align: left; border-bottom: 1px solid var(--divider-color); color: var(--primary-text-color); }
@@ -112,13 +112,6 @@ class AndersonsGrainTableCard extends HTMLElement {
         </table>
       </ha-card>`;
 
-    requestAnimationFrame(() => {
-      const card = this.shadowRoot?.querySelector("ha-card");
-      if (!card) return;
-      this.style.height = "auto";
-      this.style.minHeight = card.scrollHeight + "px";
-      this.dispatchEvent(new Event("card-height-changed", { bubbles: true, composed: true }));
-    });
   }
 
   getCardSize() {
