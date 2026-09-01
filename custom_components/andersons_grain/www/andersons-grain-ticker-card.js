@@ -41,11 +41,21 @@ class AndersonsGrainTickerCard extends HTMLElement {
     return { corn: "CORN", soybean: "SOY", red_wheat: "RED WHT" }[key] || key.toUpperCase();
   }
 
+  _findSummaryEntity(hass, commodity) {
+    const labels = { corn: "Corn", soybean: "Soybean", red_wheat: "Red Wheat" };
+    const label = labels[commodity] || commodity;
+    for (const [, state] of Object.entries(hass?.states || {})) {
+      const attrs = state.attributes || {};
+      if (attrs.all_months && attrs.commodity === label) return state;
+    }
+    return null;
+  }
+
   _buildItems(hass) {
     if (!hass) return [];
     const items = [];
     for (const commodity of (this._config?.commodities || [])) {
-      const entity = hass.states[`sensor.andersons_grain_${commodity}_summary`];
+      const entity = this._findSummaryEntity(hass, commodity);
       if (!entity) continue;
       const attrs = entity.attributes || {};
       const bid = parseFloat(entity.state);

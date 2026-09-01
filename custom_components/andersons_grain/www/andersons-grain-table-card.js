@@ -23,12 +23,20 @@ class AndersonsGrainTableCard extends HTMLElement {
     if (!this.shadowRoot) this.attachShadow({ mode: "open" });
   }
 
+  _findSummaryEntity(commodity) {
+    const labels = { corn: "Corn", soybean: "Soybean", red_wheat: "Red Wheat" };
+    const label = labels[commodity] || commodity;
+    for (const [, state] of Object.entries(this._hass?.states || {})) {
+      const attrs = state.attributes || {};
+      if (attrs.all_months && attrs.commodity === label) return state;
+    }
+    return null;
+  }
+
   _getEntityData(commodity) {
-    const summaryId = `sensor.andersons_grain_${commodity}_summary`;
-    const entity = this._hass?.states[summaryId];
+    const entity = this._findSummaryEntity(commodity);
     if (!entity) return null;
-    const attrs = entity.attributes || {};
-    return attrs.all_months || null;
+    return entity.attributes?.all_months || null;
   }
 
   _formatChange(val) {

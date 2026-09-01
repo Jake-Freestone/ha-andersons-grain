@@ -24,7 +24,13 @@ class AndersonsGrainSummaryCard extends HTMLElement {
   }
 
   _getEntity(commodity) {
-    return this._hass?.states[`sensor.andersons_grain_${commodity}_summary`] || null;
+    const labels = { corn: "Corn", soybean: "Soybean", red_wheat: "Red Wheat" };
+    const label = labels[commodity] || commodity;
+    for (const [, state] of Object.entries(this._hass?.states || {})) {
+      const attrs = state.attributes || {};
+      if (attrs.all_months && attrs.commodity === label) return state;
+    }
+    return null;
   }
 
   _commodityIcon(key) {

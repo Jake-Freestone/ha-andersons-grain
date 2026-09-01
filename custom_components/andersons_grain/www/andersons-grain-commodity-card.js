@@ -64,10 +64,20 @@ class AndersonsGrainCommodityCard extends HTMLElement {
     return `<div class="spark-track"><div class="spark-bar" style="width:${pct}%"></div></div>`;
   }
 
+  _findSummaryEntity(commodity) {
+    const labels = { corn: "Corn", soybean: "Soybean", red_wheat: "Red Wheat" };
+    const label = labels[commodity] || commodity;
+    for (const [, state] of Object.entries(this._hass?.states || {})) {
+      const attrs = state.attributes || {};
+      if (attrs.all_months && attrs.commodity === label) return state;
+    }
+    return null;
+  }
+
   _render() {
     if (!this._config || !this._hass) return;
     const { commodity, show_futures, show_basis, show_last_trade, highlight_nearest } = this._config;
-    const entity = this._hass.states[`sensor.andersons_grain_${commodity}_summary`];
+    const entity = this._findSummaryEntity(commodity);
     const label = this._commodityLabel(commodity);
     const icon = this._commodityIcon(commodity);
 
